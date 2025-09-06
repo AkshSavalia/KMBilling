@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Krishna Mobile — Billing</title>
+<style>
+  :root{
+    --orange:#ff6f00; --ink:#1b1b1b; --muted:#6b6b6b; --bg:#ffffff;
+    --card:#fff; --border:#ececec; --shadow:0 8px 30px rgba(0,0,0,.06);
+    --radius:14px; --pad: clamp(14px, 2.8vw, 18px);
+    --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom);
+    --fs-base: clamp(15px, 1.9vw, 16px);
+    --fs-h2: clamp(20px, 3.6vw, 26px);
+    --fs-h3: clamp(16px, 3.2vw, 20px);
+    --chrome-h: 140px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--ink); font:400 var(--fs-base)/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding-bottom:max(10px,var(--safe-bottom));}
+  .wrap{ max-width:860px; margin:auto; padding:max(10px,var(--safe-top)) var(--pad) var(--pad) }
+  .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow) }
+
+  .chrome{ padding:10px var(--pad) 8px }
+  h2{ font-size:var(--fs-h2); margin:12px 0 0; color:var(--orange); text-align:center }
+  .progress{ display:flex; flex-direction:column; gap:8px }
+  .progress-track{ height:10px; border-radius:999px; background:linear-gradient(180deg,#f4f4f4,#ececec); overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,.06) }
+  .progress-fill{ height:100%; width:33.33%; background:linear-gradient(90deg,#ff9a3d,#ff6f00); border-radius:999px; transition:width .45s ease }
+  .progress-labels{ display:flex; justify-content:space-between; padding:0 2px }
+  .pl{ font-size:12px; color:#888; font-weight:700; letter-spacing:.2px }
+  .pl.active{ color:var(--orange) }
+  .hint{ text-align:center; font-size:12px; color:#999; margin-top:6px }
+
+  .stage{ height:calc(100dvh - var(--chrome-h) - max(10px,var(--safe-bottom))); overflow:hidden; position:relative; touch-action:pan-y }
+  .panel{ height:100%; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:12px var(--pad) var(--pad); scrollbar-width:none; -ms-overflow-style:none }
+  .panel::-webkit-scrollbar{ width:0; height:0 }
+  [hidden]{ display:none !important }
+
+  label{ display:block; margin:10px 0 6px; color:#333; font-weight:600 }
+  input,select,textarea{ width:100%; padding:14px 12px; border:1px solid #d9d9d9; border-radius:12px; background:#fff; font-size:16px; }
+  input[type="number"],input[type="tel"]{ -moz-appearance:textfield }
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0 }
+  .row{ display:grid; grid-template-columns:1fr; gap:10px }
+  @media (min-width:720px){ .row.two{ grid-template-columns:1fr 1fr } }
+  .btnbar{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap }
+  button{ flex:1; min-height:48px; border:0; border-radius:12px; cursor:pointer; font-size:16px; font-weight:700; letter-spacing:.2px; background:var(--orange); color:#fff }
+  button.secondary{ background:#f1f1f1; color:#222 }
+  button.ghost{ background:transparent; color:var(--orange); border:1px dashed var(--orange) }
+  button.icon{ flex:0 0 auto; padding:12px 14px }
+  button:active{ transform:translateY(1px) }
+  .chip{ display:inline-block; padding:6px 10px; border:1px solid var(--orange); color:var(--orange); border-radius:999px; font-size:12px; margin-left:6px }
+  .muted{ color:var(--muted); font-size:13px }
+  .hr{ height:1px; background:#eee; margin:14px 0 }
+
+  .hx{ overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch }
+  .hx::-webkit-scrollbar{ height:6px }
+  .hx::-webkit-scrollbar-thumb{ background:#e0e0e0; border-radius:999px }
+  .hx::-webkit-scrollbar-track{ background:#fafafa }
+  .hx{ scrollbar-width:thin }
+  table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; min-width:640px }
+  th,td{ border-bottom:1px solid #eee; padding:10px 8px; text-align:left; vertical-align:top }
+  th{ font-weight:700; color:#444 }
+  .right{text-align:right}
+  .total{ font-size:clamp(16px,3.3vw,18px); font-weight:800; color:var(--orange) }
+
+  .bar{ position:sticky; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #eee; display:flex; gap:10px; align-items:center; padding:10px 0 }
+  .bar .num{ font-weight:800; color:var(--orange) }
+
+  .success-overlay{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:999; padding:max(10px,var(--safe-top)) var(--pad) max(10px,var(--safe-bottom)) }
+  .success-card{ width:min(560px,100%); background:#fff; border:2px solid var(--orange); border-radius:16px; padding:18px; text-align:center; position:relative; overflow:hidden }
+  .success-title{ margin:10px 0 4px; font-size:clamp(20px,4.6vw,26px); color:#0b7a00 }
+  .pill{ border:1px solid #eee; border-radius:999px; padding:8px 12px; font-weight:700 }
+  .success-actions{ display:flex; gap:10px; justify-content:center; margin-top:10px; flex-wrap:wrap }
+  .close-x{ position:absolute; top:6px; right:8px; font-size:22px; background:transparent; border:0; cursor:pointer }
+  .check-wrap{ display:inline-block; width:86px; height:86px }
+  .check-circle{ stroke:#23c55e; stroke-width:6; fill:none; stroke-dasharray:300; stroke-dashoffset:300; animation:dash .9s ease forwards }
+  .check-mark{ stroke:#23c55e; stroke-width:6; fill:none; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:50; stroke-dashoffset:50; animation:dash .6s .6s ease forwards }
+  @keyframes dash{ to{ stroke-dashoffset:0 } }
+  #confetti{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none }
+  @media (prefers-reduced-motion:reduce){ .check-circle,.check-mark{ animation:none } }
+
+  /* Staff code modal */
+  #staffGate{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.35); z-index:1000;
+  }
+  #staffGate .box{
+    width:min(420px,92%); background:#fff; border:1px solid #f0e4d8; border-radius:16px;
+    box-shadow:0 12px 38px rgba(0,0,0,.15); padding:16px;
+  }
+
+  /* ======== NEW: inline IMEI field with camera button (light theme) ======== */
+  .inline-field{ display:flex; gap:8px; align-items:center }
+  .inline-field input{ flex:1 }
+  .icon-btn{
+    flex:0 0 auto; min-height:48px; padding:0 12px; border-radius:12px; background:#fff;
+    border:1px solid #d9d9d9; display:grid; place-items:center; color:#333;
+  }
+
+  /* ======== NEW: Quantity stepper (keeps id="qty") ======== */
+  .qtybox{ display:flex; gap:8px; align-items:center }
+  .qtywrap{
+    display:flex; align-items:center; gap:8px; border:1px solid #d9d9d9; border-radius:12px; padding:6px; background:#fff; width:200px;
+  }
+  .qtywrap button{ flex:0 0 40px; min-height:40px; background:#fff; color:#333; border:1px solid #e5e5e5; border-radius:10px; font-size:22px; font-weight:800; }
+  .qtywrap input{ flex:1; border:0; text-align:center; font-size:16px; padding:0 }
+
+  /* ======== NEW: iOS-like scanner sheets (dark), independent from page theme ======== */
+  .sheet{ position:fixed; inset:0; background:#000; display:none; z-index:9999; }
+  .sheet.active{ display:block }
+  .ios-nav{
+    position:sticky; top:0; background:rgba(0,0,0,.9); backdrop-filter: blur(8px);
+    display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #111; z-index:10;
+    color:#0a84ff; font-weight:600;
+  }
+  .ios-nav h2{ margin:0; color:#f2f2f7; font-size:17px; font-weight:700 }
+  .sheet-body{ padding:14px; color:#f2f2f7; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial }
+  .scan-frame{
+    margin:14px auto; width:min(560px,92vw); aspect-ratio: 9 / 3;
+    border-radius:18px; border:2px solid rgba(255,255,255,.65); box-shadow:0 0 0 200vmax rgba(0,0,0,.6) inset;
+    overflow:hidden; position:relative;
+  }
+  .scan-frame video{ width:100%; height:100%; object-fit:cover; display:block }
+  .scan-help{ color:#bdbdc3; font-size:14px; margin:14px 0 0; }
+  .ios-link{ color:#0a84ff; text-decoration:none; }
+  .pause-wrap{ position:relative; width:min(560px,92vw); margin:12px auto; border:1px solid #1a1a1a; border-radius:14px; overflow:hidden; }
+  .pause-wrap video,.pause-wrap canvas{ width:100%; height:auto; display:block }
+  .pause-btn{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:64px; height:64px; border-radius:50%; border:0; background:#fff; display:grid; place-items:center; cursor:pointer;
+  }
+  .ios-input-card{ background:#151515; border:1px solid #2a2a2a; border-radius:14px; padding:8px 12px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+
+      <div class="chrome" id="chrome">
+        <div class="progress" aria-label="Progress">
+          <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+          <div class="progress-labels">
+            <span id="pl1" class="pl active">Customer</span>
+            <span id="pl2" class="pl">Product</span>
+            <span id="pl3" class="pl">Payment</span>
+          </div>
+        </div>
+        <div class="hint">Swipe ◀ ▶ to switch steps</div>
+        <h2>Customer Billing</h2>
+      </div>
+
+      <div class="stage" id="stage">
+        <!-- STEP 1 -->
+        <section id="step1" class="panel" aria-labelledby="s1title">
+          <h3 id="s1title">Step 1 — Customer Details</h3>
+          <label>Full Name</label>
+          <input id="cust_name" type="text" placeholder="Enter full name" autocomplete="name" required>
+          <label>Mobile Number</label>
+          <input id="cust_mobile" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="10-digit number" autocomplete="tel" required>
+          <div class="row two">
+            <div>
+              <label>Date of Birth</label>
+              <input id="cust_dob" type="date">
+            </div>
+            <div>
+              <label>Pincode</label>
+              <input id="cust_pincode" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 395006" maxlength="6">
+            </div>
+          </div>
+          <label>Email</label>
+          <input id="cust_email" type="email" placeholder="name@example.com" autocomplete="email">
+          <div class="btnbar"><button type="button" onclick="goStep2()">Next → Product</button></div>
+        </section>
+
+        <!-- STEP 2 -->
+        <section id="step2" class="panel" hidden aria-labelledby="s2title">
+          <h3 id="s2title">Step 2 — Product Details
+            <span class="chip" title="Use Qty = -1 to subtract (buyback/adjustment)">Qty −1 = subtract</span>
+          </h3>
+
+          <!-- Searchable Model (type to fetch suggestions from Google Sheets) -->
+          <label>Mobile Model</label>
+          <input id="modelInput" list="modelsList" placeholder="Start typing model…" autocomplete="off" />
+          <datalist id="modelsList"></datalist>
+
+          <div class="row two">
+            <div>
+              <label>Warranty</label>
+              <select id="warranty">
+                <option value="">-- Select Warranty --</option>
+                <option>1 Month Shop Warranty</option>
+                <option>3 Months Shop Warranty</option>
+                <option>6 Months Shop Warranty</option>
+                <option>Under Brand Warranty</option>
+                <option>No Warranty</option>
+              </select>
+            </div>
+
+            <!-- ===== IMEI with camera button ===== -->
+            <div>
+              <label>IMEI</label>
+              <div class="inline-field">
+                <input id="imei" type="text" placeholder="Scan or enter 15-digit IMEI" inputmode="numeric" pattern="[0-9]*">
+                <button id="openScan" class="icon-btn" type="button" aria-label="Scan IMEI">
+                  <!-- small camera icon -->
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                    <path d="M4 7a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3v-7a3 3 0 0 0-3-3h-2.17l-.59-.65A2 2 0 0 0 16.17 5H7.83a2 2 0 0 0-1.47.65L5.77 7H4zm8 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row two">
+            <!-- ===== Quantity stepper (uses same id="qty") ===== -->
+            <div>
+              <label>Quantity <span class="muted">(use −1 for buyback/less)</span></label>
+              <div class="qtybox">
+                <div class="qtywrap">
+                  <button type="button" class="qty-minus" aria-label="Decrease">−</button>
+                  <input id="qty" type="number" value="1" step="1" min="-1" max="5">
+                  <button type="button" class="qty-plus" aria-label="Increase">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label>Rate (₹)</label>
+              <input id="rate" type="number" placeholder="0" step="1">
+            </div>
+          </div>
+
+          <div class="btnbar">
+            <button type="button" class="secondary" onclick="backToStep1()">← Back</button>
+            <button type="button" class="icon" onclick="addLine()">➕ Add</button>
+            <button type="button" class="ghost" onclick="goStep3()">Next → Payment</button>
+          </div>
+
+          <div class="hr"></div>
+
+          <div id="linesWrap" hidden>
+            <div class="hx">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th><th>Model</th><th>Warranty</th>
+                    <th class="right">Qty</th><th class="right">Rate (₹)</th><th class="right">Amount (₹)</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="linesBody"></tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="5" class="right total">Grand Total</td>
+                    <td class="right total" id="grandTotal">₹0</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p class="muted">Tip: set Qty to <b>−1</b> to subtract that rate from the total (buyback/adjustment).</p>
+          </div>
+
+          <div class="bar" id="bar2" hidden>
+            <div>Grand Total:</div>
+            <div class="num" id="bar2Total">₹0</div>
+            <button class="ghost" onclick="goStep3()">Next</button>
+          </div>
+        </section>
+
+        <!-- STEP 3 -->
+        <section id="step3" class="panel" hidden aria-labelledby="s3title">
+          <h3 id="s3title">Step 3 — Payment</h3>
+
+          <div class="row two">
+            <div>
+              <label>Payment Mode</label>
+              <select id="pay_mode">
+                <option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Swipe">Swipe</option>
+              </select>
+            </div>
+            <div>
+              <label>Amount (₹)</label>
+              <input id="pay_amount" type="number" placeholder="0" step="1">
+            </div>
+          </div>
+          <label>Reference (UPI txn ID / last4 / note)</label>
+          <input id="pay_ref" type="text" placeholder="Optional reference">
+          <div class="btnbar">
+            <button type="button" class="secondary" onclick="backToStep2()">← Back</button>
+            <button type="button" class="icon" onclick="addPayment()">➕ Add Payment</button>
+            <button type="button" class="ghost" onclick="clearPayments()">Clear</button>
+          </div>
+          <div class="hr"></div>
+          <div id="payWrap" hidden>
+            <div class="hx">
+              <table>
+                <thead>
+                  <tr><th>#</th><th>Mode</th><th>Reference</th><th class="right">Amount (₹)</th><th></th></tr>
+                </thead>
+                <tbody id="paymentsBody"></tbody>
+              </table>
+            </div>
+            <div class="row two" style="margin-top:10px">
+              <div class="card" style="padding:12px"><div class="muted">Grand Total</div><div class="total" id="statTotal">₹0</div></div>
+              <div class="card" style="padding:12px"><div class="muted">Paid</div><div class="total" id="statPaid">₹0</div></div>
+              <div class="card" style="padding:12px"><div class="muted">Due</div><div class="total" id="statDue">₹0</div></div>
+              <div class="card" style="padding:12px"><div class="muted">Change</div><div class="total" id="statChange">₹0</div></div>
+            </div>
+            <p class="muted" id="statusText" style="margin:10px 0 0">Status: —</p>
+            <div class="btnbar">
+              <button type="button" id="saveBtn" onclick="askStaffAndSave()">Save Record</button>
+            </div>
+          </div>
+          <div class="bar" id="bar3" hidden>
+            <div>Paid:</div><div class="num" id="bar3Paid">₹0</div>
+            <div style="margin-left:auto">Due:</div><div class="num" id="bar3Due">₹0</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS OVERLAY -->
+  <div id="success" class="success-overlay" aria-hidden="true">
+    <div class="success-card">
+      <canvas id="confetti"></canvas>
+      <button class="close-x" onclick="hideSuccess()" aria-label="Close">×</button>
+      <div class="check-wrap" aria-hidden="true">
+        <svg viewBox="0 0 120 120">
+          <circle class="check-circle" cx="60" cy="60" r="48" />
+          <polyline class="check-mark" points="34,64 52,80 86,44" />
+        </svg>
+      </div>
+      <h3 class="success-title">Well done! 🎉</h3>
+      <p class="muted" style="margin:6px 0 10px">Another happy Krishna Mobile customer — great effort on this sale.</p>
+      <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:8px">
+        <div class="pill">Grand Total: <span id="succTotal">₹0</span></div>
+        <div class="pill">Paid: <span id="succPaid">₹0</span></div>
+        <div class="pill">Status: <span id="succStatus">—</span></div>
+      </div>
+      <div class="success-actions">
+        <button onclick="newBilling()">New Billing</button>
+        <button class="secondary" onclick="viewJson()">View JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAFF CODE GATE -->
+  <div id="staffGate">
+    <div class="box">
+      <h3 style="margin:6px 0 10px; color:#c65d00">Enter Staff Code</h3>
+      <p class="muted" style="margin:0 0 10px">Only staff can generate bills. Your code won’t be shown on screen.</p>
+      <input id="staff_code_input" type="password" placeholder="••••••" style="width:100%;padding:14px 12px;border:1px solid #f0e4d8;border-radius:12px;font-size:16px;background:#fffaf3">
+      <div class="btnbar" style="margin-top:12px">
+        <button class="secondary" type="button" onclick="closeStaffGate()">Cancel</button>
+        <button type="button" onclick="verifyStaffAndSave()">Verify & Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= Scanner Sheets (outside main layout) ======= -->
+  <!-- Sheet 1: Scan Serial Number -->
+  <div id="scanSheet" class="sheet" aria-modal="true" role="dialog">
+    <div class="ios-nav">
+      <button type="button" id="closeScan1" style="background:none;border:0;color:#0a84ff">Cancel</button>
+      <h2>Scan Serial Number</h2>
+      <span style="opacity:.4"> </span>
+    </div>
+    <div class="sheet-body">
+      <div class="scan-frame">
+        <video id="scanVideo" autoplay playsinline muted></video>
+      </div>
+      <p class="scan-help">Locate the serial/IMEI on the product, screen or packaging. Position it in the frame.</p>
+      <div style="height:10px"></div>
+      <a href="#" class="ios-link" id="toManual">Enter a serial number manually</a>
+    </div>
+  </div>
+
+  <!-- Sheet 2: Enter Manually -->
+  <div id="manualSheet" class="sheet" aria-modal="true" role="dialog">
+    <div class="ios-nav">
+      <button type="button" id="backToScanner" style="background:none;border:0;color:#0a84ff">Back to scanner</button>
+      <h2>Enter Manually</h2>
+      <button type="button" id="doneManual" style="background:none;border:0;color:#0a84ff">Done</button>
+    </div>
+    <div class="sheet-body">
+      <div class="pause-wrap">
+        <video id="manualVideo" autoplay playsinline muted></video>
+        <canvas id="manualSnap" style="display:none"></canvas>
+        <button class="pause-btn" id="pauseBtn" type="button" aria-label="Pause">
+          <svg viewBox="0 0 24 24" fill="#000"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+        </button>
+      </div>
+      <div class="ios-input-card">
+        <input id="manualInput" type="text" placeholder="Serial Number / IMEI" style="width:100%;height:40px;border:0;background:transparent;color:#f2f2f7;font-size:16px;outline:none;text-transform:uppercase">
+      </div>
+      <p class="scan-help">Tap the pause button to freeze the image.</p>
+    </div>
+  </div>
+
+<script>
+  /* ========= CONFIG ========= */
+  const SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbw6JCSZ7tpYAfO2cW3zLhX3l6s47JORcQFbjGgU-ssOfUsPr-MvW2uwK3cdC0uq1pA-/exec';
+
+  /* ========= STAFF CODES (client quick check – optional) ========= */
+  const STAFF_CODES = {
+    // 'CODE' : 'Name'
+    'KMB101':'Rahul',
+    'KMB202':'Pooja',
+    'KMB303':'Ravi'
+    // add more...
+  };
+
+  /* ========= STATE & HELPERS ========= */
+  const lines = []; const payments = []; let cachedTotal = 0; let lastPayload = null;
+  const $ = s => document.querySelector(s);
+  const show = (el, yes) => { if(typeof el === 'string') el = $(el); if(!el) return; el.hidden = !yes; };
+  const val = id => document.getElementById(id)?.value?.trim() || '';
+  const n = x => Number(x)||0;
+  const money = nm => (Number(nm)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  // Idempotency key generator (persist for this bill until New Billing)
+  function getIdempotencyKey(){
+    if (!window._idk) {
+      window._idk = (self.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+    }
+    return window._idk;
+  }
+
+  /* ========= PROGRESS ========= */
+  function setProgress(step){
+    const fill=$('#progressFill'), labels=[$('#pl1'),$('#pl2'),$('#pl3')];
+    fill.style.width = step===1?'33.33%':step===2?'66.66%':'100%';
+    labels.forEach((el,i)=> el.classList.toggle('active', i+1===step));
+  }
+  function measureChrome(){ const h=Math.ceil($('#chrome').getBoundingClientRect().height); document.documentElement.style.setProperty('--chrome-h', h + 'px'); }
+  window.addEventListener('resize', measureChrome); window.addEventListener('orientationchange', measureChrome);
+
+  /* ========= MODELS — live suggestions from Google Sheets ========= */
+  const modelInput = document.getElementById('modelInput');
+  const modelsList = document.getElementById('modelsList');
+  let suggestTimer=null, lastQuery='', cache=new Map();
+
+  function populateModels(list){
+    modelsList.innerHTML='';
+    (list||[]).forEach(m=>{ const opt=document.createElement('option'); opt.value=m; modelsList.appendChild(opt); });
+  }
+
+  async function fetchModels(q){
+    if(cache.has(q)) { populateModels(cache.get(q)); return; }
+    const url = SHEETS_ENDPOINT + '?models=1&q=' + encodeURIComponent(q) + '&limit=50';
+    try{
+      const r = await fetch(url, { method:'GET' });
+      const d = await r.json();
+      const arr = (d && d.ok && Array.isArray(d.models)) ? d.models : [];
+      cache.set(q, arr);
+      populateModels(arr);
+    }catch(e){ console.warn('Model fetch failed', e); }
+  }
+
+  modelInput.addEventListener('input', ()=>{
+    const q = modelInput.value.trim();
+    lastQuery = q;
+    clearTimeout(suggestTimer);
+    suggestTimer = setTimeout(()=> fetchModels(lastQuery), 120);
+  });
+
+  modelInput.addEventListener('focus', ()=>{
+    if(!modelInput.value.trim()) fetchModels('');
+  });
+
+  /* ========= NAVIGATION ========= */
+  function currentStep(){ return !$('#step1').hidden?1:!$('#step2').hidden?2:3; }
+  function goToStep(step){
+    if(step===1){ setProgress(1); show('#step1',true); show('#step2',false); show('#step3',false); }
+    if(step===2){ setProgress(2); show('#step1',false); show('#step2',true); show('#step3',false); }
+    if(step===3){ setProgress(3); show('#step1',false); show('#step2',false); show('#step3',true); updatePaymentStats(); }
+  }
+  function goStep2(){ if(!val('cust_name') || !val('cust_mobile')){ alert('Please fill Name and Mobile to continue.'); return; } goToStep(2); }
+  function backToStep1(){ goToStep(1); }
+  function goStep3(){ if(lines.length===0){ alert('Add at least one product line first.'); return; } goToStep(3); }
+  function backToStep2(){ goToStep(2); }
+
+  /* ========= PRODUCTS ========= */
+  function addLine(){
+    const model = val('modelInput');
+    const warranty = val('warranty');
+    const imei = val('imei');
+    const qty = Number(document.getElementById('qty').value);
+    const rate = Number(document.getElementById('rate').value);
+    if(!model){ alert('Enter/choose Mobile Model.'); return; }
+    if(!warranty){ alert('Select Warranty.'); return; }
+    if(!Number.isFinite(qty)){ alert('Enter Quantity.'); return; }
+    if(!Number.isFinite(rate) || rate === 0){ alert('Enter Rate (non-zero).'); return; }
+    const amount = qty * rate; // qty -1 => subtracts
+    lines.push({ model, warranty, imei, qty, rate, amount });
+    renderLines();
+    document.getElementById('modelInput').value=''; document.getElementById('warranty').value=''; document.getElementById('imei').value=''; document.getElementById('qty').value=1; document.getElementById('rate').value='';
+  }
+  function renderLines(){
+    const body=$('#linesBody'); body.innerHTML='';
+    let total=0;
+    lines.forEach((row,idx)=>{
+      total += row.amount;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${idx+1}</td><td title="${row.imei ? 'IMEI: '+row.imei : ''}">${row.model}</td>
+        <td>${row.warranty}</td><td class="right">${row.qty}</td>
+        <td class="right">${money(row.rate)}</td><td class="right">${money(row.amount)}</td>
+        <td class="right"><button class="secondary" onclick="removeLine(${idx})">✕</button></td>`;
+      body.appendChild(tr);
+    });
+    cachedTotal=total; $('#grandTotal').textContent='₹'+money(total);
+    const showWrap=lines.length>0; show('#linesWrap',showWrap); show('#bar2',showWrap);
+    if(showWrap) $('#bar2Total').textContent='₹'+money(total);
+    updatePaymentStats();
+  }
+  function removeLine(i){ lines.splice(i,1); renderLines(); }
+
+  /* ========= PAYMENTS ========= */
+  function addPayment(){
+    const mode=val('pay_mode')||'Cash'; const amt=n($('#pay_amount').value); const ref=val('pay_ref');
+    if(amt<=0){ alert('Enter a positive amount.'); return; }
+    payments.push({ mode, amount:amt, reference:ref, ts:new Date().toISOString() });
+    renderPayments(); $('#pay_amount').value=''; $('#pay_ref').value='';
+  }
+  function renderPayments(){
+    const body=$('#paymentsBody'); body.innerHTML='';
+    payments.forEach((p,idx)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${idx+1}</td><td>${p.mode}</td><td>${p.reference||'-'}</td><td class="right">${money(p.amount)}</td><td class="right"><button class="secondary" onclick="removePayment(${idx})">✕</button></td>`;
+      body.appendChild(tr);
+    });
+    show('#payWrap',true); updatePaymentStats();
+  }
+  function removePayment(i){ payments.splice(i,1); renderPayments(); }
+  function clearPayments(){ if(confirm('Clear all payments?')){ payments.length=0; renderPayments(); } }
+  function updatePaymentStats(){
+    const total=cachedTotal; const paid=payments.reduce((s,p)=> s + n(p.amount), 0);
+    let due=total-paid, change=0; if(due<0){ change=-due; due=0; }
+    $('#statTotal').textContent='₹'+money(total);
+    $('#statPaid').textContent='₹'+money(paid);
+    $('#statDue').textContent='₹'+money(due);
+    $('#statChange').textContent='₹'+money(change);
+    const showBar3=lines.length>0; show('#bar3',showBar3);
+    if(showBar3){ $('#bar3Paid').textContent='₹'+money(paid); $('#bar3Due').textContent='₹'+money(due); }
+    const status = total===0 ? 'No charge' : paid===0 ? 'Unpaid' : due>0 ? 'Pending' : change>0 ? 'Overpaid (return change)' : 'Paid';
+    $('#statusText').textContent='Status: '+status;
+  }
+
+  /* ========= STAFF CODE GATE ========= */
+  function openStaffGate(){
+    const g = document.getElementById('staffGate');
+    g.style.display='flex';
+    setTimeout(()=> document.getElementById('staff_code_input').focus(), 40);
+  }
+  function closeStaffGate(){
+    const g = document.getElementById('staffGate');
+    g.style.display='none';
+    const inp = document.getElementById('staff_code_input');
+    if (inp) inp.value = '';
+  }
+  function askStaffAndSave(){ openStaffGate(); }
+
+  async function verifyStaffAndSave(){
+    const raw = document.getElementById('staff_code_input').value.trim();
+    if(!raw){ alert('Please enter your staff code.'); return; }
+
+    const code = raw.toUpperCase();
+    const staffName = STAFF_CODES[code]; // optional quick UX check
+
+    if(!staffName){
+      alert('You are not authorised person');
+      return;
+    }
+
+    closeStaffGate();
+    await saveRecord({ code, name: staffName });
+  }
+
+  /* ========= SAVE → GOOGLE SHEETS (idempotent + name saved) ========= */
+  async function saveRecord(staff){
+    if(lines.length===0){ alert('Add at least one product line.'); return; }
+    if(!staff || !staff.name){ alert('You are not authorised person'); return; }
+
+    const customer = { name:val('cust_name'), mobile:val('cust_mobile'), dob:$('#cust_dob').value, pincode:val('cust_pincode'), email:val('cust_email') };
+    const totals = { total:cachedTotal, paid:payments.reduce((s,p)=> s + (Number(p.amount)||0), 0) };
+    totals.due = Math.max(0, totals.total - totals.paid);
+    totals.change = Math.max(0, totals.paid - totals.total);
+    const status = totals.total===0 ? 'No charge' : totals.paid===0 ? 'Unpaid' : totals.due>0 ? 'Pending' : totals.change>0 ? 'Overpaid' : 'Paid';
+
+    const idKey = getIdempotencyKey();
+
+    const payload = {
+      customer, items:lines, totals, payments,
+      sales_executive: staff.name,
+      staff_code: staff.code,
+      status,
+      created_at: new Date().toISOString(),
+      idempotency_key: idKey
+    };
+
+    const saveBtn = document.getElementById('saveBtn');
+    if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+    try{
+      const resp = await fetch(SHEETS_ENDPOINT, {
+        method:'POST',
+        headers:{ 'Content-Type':'text/plain' },
+        body: JSON.stringify(payload)
+      });
+      const text = await resp.text();
+      let data={}; try{ data = JSON.parse(text); }catch{}
+      if(!resp.ok || !data.ok){ throw new Error(data.error || ('HTTP '+resp.status)); }
+
+      lastPayload = { ...payload, invoice_id: data.invoice_id };
+      if(saveBtn){ saveBtn.textContent = 'Saved ✓'; saveBtn.disabled = true; }
+      showSuccess(lastPayload);
+
+    }catch(err){
+      console.error(err);
+      if(String(err.message).toLowerCase().includes('authorised')){
+        alert('You are not authorised person');
+      }else{
+        alert('Save failed: ' + err.message);
+      }
+      if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save Record'; }
+    }
+  }
+
+  /* ========= SUCCESS ========= */
+  function showSuccess(d){
+    $('#succTotal').textContent='₹'+money(d.totals.total);
+    $('#succPaid').textContent='₹'+money(d.totals.paid);
+    $('#succStatus').textContent=d.status;
+    const ov=$('#success'); ov.style.display='flex'; ov.setAttribute('aria-hidden','false'); startConfetti();
+  }
+  function hideSuccess(){ const ov=$('#success'); ov.style.display='none'; ov.setAttribute('aria-hidden','true'); stopConfetti(); }
+  function viewJson(){ if(lastPayload) alert(JSON.stringify(lastPayload,null,2)); }
+  function newBilling(){
+    lines.length=0; payments.length=0; cachedTotal=0; lastPayload=null;
+    window._idk = null; // reset idempotency key
+    const saveBtn = document.getElementById('saveBtn');
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save Record'; }
+    ['cust_name','cust_mobile','cust_dob','cust_pincode','cust_email','modelInput','warranty','imei','qty','rate','pay_amount','pay_ref'].forEach(id=>{
+      const el=document.getElementById(id); if(!el) return; el.value=(id==='qty'?'1':'');
+    });
+    renderLines(); renderPayments(); updatePaymentStats(); hideSuccess(); goToStep(1);
+  }
+
+  /* ========= CONFETTI ========= */
+  let confettiTimer=null, confettiCtx, confettiCanvas, confettiParts=[];
+  function startConfetti(){ confettiCanvas=document.getElementById('confetti'); confettiCtx=confettiCanvas.getContext('2d'); resizeConfetti(); confettiParts=[];
+    const colors=['#ff6f00','#ffd6aa','#ffffff','#ffb36b','#ffe7cf'];
+    for(let i=0;i<120;i++){ confettiParts.push({ x:Math.random()*confettiCanvas.width, y:Math.random()*-confettiCanvas.height, r:4+Math.random()*6, c:colors[(Math.random()*colors.length)|0], v:2+Math.random()*3, a:Math.random()*360, s:Math.random()*1+.5 }); }
+    window.addEventListener('resize', resizeConfetti); animateConfetti(); if(confettiTimer) clearTimeout(confettiTimer); confettiTimer=setTimeout(stopConfetti,5000);
+  }
+  function stopConfetti(){ window.removeEventListener('resize', resizeConfetti); confettiParts=[]; if(confettiCtx) confettiCtx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height); if(confettiTimer) clearTimeout(confettiTimer); confettiTimer=null; }
+  function resizeConfetti(){ const card=document.querySelector('.success-card'); const c=document.getElementById('confetti'); c.width=card.clientWidth; c.height=card.clientHeight; }
+  function animateConfetti(){ if(!confettiCtx) return; confettiCtx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+    confettiParts.forEach(p=>{ p.y+=p.v; p.x+=Math.sin((p.a+=p.s)*Math.PI/180); if(p.y>confettiCanvas.height+10){ p.y=-10; p.x=Math.random()*confettiCanvas.width; } confettiCtx.beginPath(); confettiCtx.arc(p.x,p.y,p.r,0,Math.PI*2); confettiCtx.fillStyle=p.c; confettiCtx.fill(); });
+    if(confettiParts.length) requestAnimationFrame(animateConfetti);
+  }
+
+  /* ========= SWIPE NAV ========= */
+  const stage=document.getElementById('stage'); let startX=0,startY=0,startT=0,swiping=false;
+  const ignoreSwipe=t=> t.closest('input,textarea,select,button') || t.closest('.hx');
+  function onPointerDown(e){ if(e.pointerType==='mouse') return; if(ignoreSwipe(e.target)) return; swiping=true; startX=e.clientX; startY=e.clientY; startT=Date.now(); }
+  function onPointerUp(e){ if(!swiping) return; swiping=false; const dx=e.clientX-startX, dy=e.clientY-startY, dt=Date.now()-startT;
+    if(Math.abs(dx)>=60 && Math.abs(dx)>Math.abs(dy)*1.2 && dt<=800){ const step=currentStep(); if(dx<0){ if(step===1) goStep2(); else if(step===2) goStep3(); } else { if(step===2) backToStep1(); else if(step===3) backToStep2(); } } }
+  if(window.PointerEvent){ stage.addEventListener('pointerdown', onPointerDown, {passive:true}); stage.addEventListener('pointerup', onPointerUp, {passive:true}); stage.addEventListener('pointercancel', ()=>{swiping=false}, {passive:true}); }
+  else { stage.addEventListener('touchstart',(e)=>{ const t=e.changedTouches[0]; if(ignoreSwipe(e.target)) return; swiping=true; startX=t.clientX; startY=t.clientY; startT=Date.now(); },{passive:true});
+         stage.addEventListener('touchend', (e)=>{ if(!swiping) return; const t=e.changedTouches[0]; onPointerUp({clientX:t.clientX, clientY:t.clientY}); },{passive:true});
+         stage.addEventListener('touchcancel', ()=>{ swiping=false }, {passive:true}); }
+
+  /* ========= INIT ========= */
+  document.addEventListener('DOMContentLoaded', ()=>{ setProgress(1); measureChrome(); });
+
+  /* ========= NEW: Quantity stepper logic (long-press repeat) ========= */
+  (function qtyStepper(){
+    const qtyInput = document.getElementById('qty');
+    const minusBtn = document.querySelector('.qty-minus');
+    const plusBtn  = document.querySelector('.qty-plus');
+    const clamp = (v,min,max)=> Math.max(min, Math.min(max, v));
+    const step = d => {
+      const min = n(qtyInput.min ?? '-1');
+      const max = n(qtyInput.max ?? '5');
+      const v   = n(qtyInput.value || '0');
+      qtyInput.value = clamp(v + d, min, max);
+      qtyInput.dispatchEvent(new Event('change'));
+    };
+    const holdRepeat = (btn, delta) => {
+      let t, r;
+      const down = () => { step(delta); t=setTimeout(()=>{ r=setInterval(()=>step(delta), 60); }, 350); };
+      const up = () => { clearTimeout(t); clearInterval(r); };
+      btn.addEventListener('mousedown', down);
+      btn.addEventListener('touchstart', down, {passive:true});
+      ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev => btn.addEventListener(ev, up));
+    };
+    minusBtn.addEventListener('click', ()=>step(-1));
+    plusBtn .addEventListener('click', ()=>step(1));
+    holdRepeat(minusBtn,-1); holdRepeat(plusBtn,1);
+  })();
+
+  /* ========= NEW: IMEI / Serial Scanner ========= */
+  (function scanner(){
+    const imeiInput = document.getElementById('imei');
+    const openScan = document.getElementById('openScan');
+
+    const scanSheet = document.getElementById('scanSheet');
+    const closeScan1 = document.getElementById('closeScan1');
+    const scanVideo = document.getElementById('scanVideo');
+    const toManual = document.getElementById('toManual');
+
+    const manualSheet = document.getElementById('manualSheet');
+    const backToScanner = document.getElementById('backToScanner');
+    const doneManual = document.getElementById('doneManual');
+    const manualVideo = document.getElementById('manualVideo');
+    const manualSnap = document.getElementById('manualSnap');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const manualInput = document.getElementById('manualInput');
+
+    let streamScan=null, streamManual=null, rafId=null, detector=null;
+    const supportsBarcode = 'BarcodeDetector' in window;
+    const showSheet = el => el.classList.add('active');
+    const hideSheet = el => el.classList.remove('active');
+
+    async function startCamera(videoEl){
+      const s = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
+      videoEl.srcObject = s; await videoEl.play(); return s;
+    }
+    function stopStream(s){ if(!s) return; s.getTracks().forEach(t=>t.stop()); }
+    function closeAll(){
+      cancelAnimationFrame(rafId); rafId=null;
+      hideSheet(scanSheet); hideSheet(manualSheet);
+      stopStream(streamScan); streamScan=null; scanVideo.srcObject=null;
+      stopStream(streamManual); streamManual=null; manualVideo.srcObject=null;
+    }
+    function extractSerial(text){
+      // Prefer 15-digit IMEI if present, otherwise accept 10-18 alnum serials
+      const imei = String(text||'').match(/\b\d{15}\b/);
+      if (imei) return imei[0];
+      const m = String(text||'').match(/\b[A-Z0-9]{10,18}\b/i);
+      return m ? m[0].toUpperCase() : null;
+    }
+
+    async function ensureZXing(){
+      if (window.ZXing) return window.ZXing;
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js";
+        s.onload=resolve; s.onerror=()=>reject(new Error('ZXing load failed'));
+        document.head.appendChild(s);
+      });
+      return window.ZXing;
+    }
+
+    openScan.addEventListener('click', async () => {
+      try{
+        showSheet(scanSheet);
+        streamScan = await startCamera(scanVideo);
+        if (supportsBarcode){
+          detector = new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13','upc_a']});
+          scanLoopBarcode();
+        } else {
+          const ZXing = await ensureZXing();
+          const reader = new ZXing.BrowserMultiFormatReader();
+          reader.decodeFromVideoElementContinuously(scanVideo, (res, err)=>{
+            if (res){
+              const serial = extractSerial(res.getText());
+              if (serial){ imeiInput.value = serial; reader.reset(); closeAll(); }
+            }
+          });
+        }
+      }catch(e){
+        hideSheet(scanSheet);
+        alert('Camera permission blocked. Open the Web App on HTTPS and allow Camera.\n\n'+e.message);
+      }
+    });
+
+    async function scanLoopBarcode(){
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const loop = async () => {
+        if (!scanSheet.classList.contains('active')) return;
+        canvas.width = scanVideo.videoWidth; canvas.height = scanVideo.videoHeight;
+        ctx.drawImage(scanVideo,0,0,canvas.width,canvas.height);
+        try{
+          const bmp = await createImageBitmap(canvas);
+          const codes = await detector.detect(bmp);
+          if (codes && codes.length){
+            for (const c of codes){
+              const serial = extractSerial(c.rawValue);
+              if (serial){ imeiInput.value = serial; closeAll(); return; }
+            }
+          }
+        }catch(_){}
+        rafId = requestAnimationFrame(loop);
+      };
+      loop();
+    }
+
+    closeScan1.addEventListener('click', closeAll);
+
+    toManual.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      hideSheet(scanSheet); showSheet(manualSheet);
+      try{ streamManual = await startCamera(manualVideo); }catch(e){ alert('Camera permission blocked.\n\n'+e.message); }
+    });
+
+    backToScanner.addEventListener('click', async ()=>{
+      hideSheet(manualSheet); showSheet(scanSheet);
+      stopStream(streamManual); streamManual=null;
+      try{ streamScan = await startCamera(scanVideo); if(supportsBarcode) scanLoopBarcode(); }catch(_){}
+    });
+
+    let frozen=false;
+    pauseBtn.addEventListener('click', ()=>{
+      if(!frozen){
+        manualSnap.width = manualVideo.videoWidth;
+        manualSnap.height = manualVideo.videoHeight;
+        const ctx=manualSnap.getContext('2d');
+        ctx.drawImage(manualVideo,0,0,manualSnap.width,manualSnap.height);
+        manualVideo.style.display='none'; manualSnap.style.display='block';
+        frozen=true; pauseBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="#000"><polygon points="8,5 19,12 8,19"/></svg>';
+      }else{
+        manualVideo.style.display='block'; manualSnap.style.display='none';
+        frozen=false; pauseBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="#000"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>';
+      }
+    });
+
+    doneManual.addEventListener('click', ()=>{
+      if (manualInput.value.trim()){
+        imeiInput.value = manualInput.value.trim().toUpperCase();
+        closeAll();
+      } else {
+        alert('Please enter a serial number.');
+      }
+    });
+
+    // basic IMEI check (optional)
+    imeiInput.addEventListener('blur', ()=>{
+      const v = (imeiInput.value||'').replace(/\D+/g,'');
+      if (v && v.length!==15){
+        // allow serials too; only warn if looks numeric but not 15
+        if(/^\d+$/.test(imeiInput.value)) alert('IMEI should be 15 digits. If this is a serial, ignore.');
+      }
+    });
+  })();
+</script>
+</body>
+</html>
